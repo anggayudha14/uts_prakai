@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Analisis Komentar Tiktok</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container my-4">
+        <h2 class="text-primary fw-bold mb-4">Analisis Komentar Tiktok</h2>
+
+        <div class="row">
+            <!-- Upload CSV -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Upload Data Komentar (CSV)</h5>
+                        <form method="POST" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="file" class="form-label">Upload File Komentar (CSV):</label>
+                                <input type="file" class="form-control" name="file" id="file" accept=".csv">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Analisis File</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analisis Komentar Baru -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Analisis Sentimen Komentar Baru</h5>
+                        <form method="POST">
+                            <div class="mb-3">
+                                <textarea name="comment" class="form-control" rows="3" placeholder="Masukkan komentar Tiktok..." required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-success">Analisis Sentimen</button>
+                        </form>
+                        {% if hasil_text %}
+                            <div class="alert alert-info mt-3">
+                                Hasil Sentimen: <strong>{{ hasil_text }}</strong>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hasil Analisis Tabel -->
+        {% if data %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Hasil Analisis Komentar</h5>
+                <div class="table-responsive">
+                    <table class="table table-striped table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Komentar</th>
+                                <th>Sentimen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in data %}
+                                <tr>
+                                    <td>{{ row['komentar'] if row.get('komentar') else row.get('comment', '') }}</td>
+                                    <td>{{ row['sentimen'] }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <a href="/download" class="btn btn-outline-secondary mt-2">Download Hasil CSV</a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Wordcloud -->
+        {% if wordcloud %}
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                <h5 class="card-title">Wordcloud Komentar</h5>
+                <img src="{{ url_for('static', filename='wordcloud.png') }}" alt="Wordcloud Komentar" class="img-fluid">
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</body>
+</html>

@@ -1,0 +1,11 @@
+pandas
+numpy
+matplotlib
+seaborn
+wordcloud
+Sastrawi
+flask
+tensorflow
+scikit-learn
+textblob
+googletrans==4.0.0-rc1
