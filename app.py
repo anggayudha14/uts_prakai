@@ -25,6 +25,10 @@ max_length = 100
 # Stopwords Bahasa Indonesia
 stop_words = set(stopwords.words('indonesian'))
 
+# Fungsi potong komentar panjang agar tidak satu baris memanjang
+def pecah_komentar_panjang(komentar, max_len=100):
+    return '\n'.join(komentar[i:i+max_len] for i in range(0, len(komentar), max_len))
+
 # Preprocessing untuk wordcloud
 def preprocess_text(text):
     if pd.isna(text):
@@ -51,87 +55,77 @@ def index():
     wordcloud = False
 
     if request.method == 'POST':
-        if 'comment' in request.form:
-            comment = request.form['comment']
-            hasil_text = predict_sentiment(comment)
-
-        elif 'file' in request.files and request.files['file'].filename != '':
+        if 'file' in request.files:
             file = request.files['file']
-            if file.filename.endswith('.csv'):
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-                file.save(filepath)
+            df = pd.read_csv(file)
 
-                try:
-                    df = pd.read_csv(filepath)
-                except Exception as e:
-                    return f"Gagal membaca CSV: {e}", 400
+            # Cek nama kolom komentar
+            comment_col = 'komentar' if 'komentar' in df.columns else 'comment'
 
-                df = df.rename(columns=lambda x: x.strip().lower())
+            # Tambah komentar dummy jika kosong semua
+            if df[comment_col].dropna().str.strip().eq('').all():
+                df = pd.DataFrame({
+                    comment_col: [
+                        "Kami bersama sukatani.",
+                        "Sukatani berkata benar.",
+                        "Kayanya grup band sukatani gak bisa bayar nih hingga minta maaf.",
+                        "Polisi adalah hama.",
+                        "Di bungkam karena fakta.",
+                        "Tugas jibril memberi wahyu, tugas sukatani memberi fakta.",
+                        "Rip kebebasan berekspresi.",
+                        "Mereka bukan klarifikasi tapi diintimidasi.",
+                        "Realita yang dibungkam.",
+                        "Ngapain minta maaf?",
+                        "Tersinggung artinya?",
+                        "Karya seni dibungkam=lawan.",
+                        "Bapak gue polisi gue setel didepan bapak gue hahahaha.",
+                        "Yang bikin susah kita mengekspresikan kritikan kita kepada pemerintah UU ITE.Padahal lagunya itu kritikan harusnya lembaga  yang dikritik ya berbenah.",
+                        "Intinya ya bayar polisi.",
+                        "Kalian mewakili rakyat.",
+                        "Kocak polri.",
+                        "Klarifikasi karena belum bayar polisi.",
+                        "Purbalingga.",
+                        "Padahal fakta.",
+                        "KAMIBERSAMASUKATANI.",
+                        "Ngapain minta maaf",
+                        "Dan lagi karya dibatasi.",
+                        "Kalo bicara fakta memang susah di konoha.",
+                        "kenapa?jujur itu susah.",
+                        "Negara kocak.",
+                        "Lah kan emang kalo gak bayar gak diurus.",
+                        "Bayar bayar bayar.",
+                        "Sama lirik doang panik."
+                    ]
+                })
 
-                if 'komentar' in df.columns:
-                    comment_col = 'komentar'
-                elif 'comment' in df.columns:
-                    comment_col = 'comment'
-                else:
-                    comment_col = df.columns[0]  # fallback
+            # Analisis sentimen
+            df['sentimen'] = df[comment_col].astype(str).apply(predict_sentiment)
 
-                # Tambah komentar dummy jika kosong semua
-                if df[comment_col].dropna().str.strip().eq('').all():
-                    df = pd.DataFrame({
-                        comment_col: [
-                            "Kami bersama sukatani.",
-                            "Sukatani berkata benar.",
-                            "Kayanya grup band sukatani gak bisa bayar nih hingga minta maaf.",
-                            "Polisi adalah hama.",
-                            "Di bungkam karena fakta.",
-                            "Tugas jibril memberi wahyu, tugas sukatani memberi fakta.",
-                            "Rip kebebasan berekspresi.",
-                            "Mereka bukan klarifikasi tapi diintimidasi.",
-                            "Realita yang dibungkam.",
-                            "Ngapain minta maaf?"
-                            "Tersinggung artinya?"
-                            "Karya seni dibungkam=lawan."
-                            "Bapak gue polisi gue setel didepan bapak gue hahahaha."
-                            "Yang bikin susah kita mengekspresikan kritikan kita kepada pemerintah UU ITE.Padahal lagunya itu kritikan harusnya lembaga  yang dikritik ya berbenah."
-                            "Intinya ya bayar polisi."
-                            "Kalian mewakili rakyat."
-                            "Kocak polri."
-                            "Klarifikasi karena belum bayar polisi."
-                            "Purbalingga."
-                            "Padahal fakta."
-                            "KAMIBERSAMASUKATANI."
-                            "Ngapain minta maaf"
-                            "Dan lagi karya dibatasi."
-                            "Kalo bicara fakta memang susah di konoha."
-                            "kenapa?jujur itu susah."
-                            "Negara kocak."
-                            "Lah kan emang kalo gak bayar gak diurus."
-                            "Bayar bayar bayar."
-                            "Sama lirik doang panik."
-                        ]
-                    })
+            # WordCloud
+            cleaned_comments = [preprocess_text(c) for c in df[comment_col].astype(str)]
+            all_text = " ".join(cleaned_comments)
 
-                # Analisis sentimen
-                df['sentimen'] = df[comment_col].astype(str).apply(predict_sentiment)
-                df.to_csv('uploaded/hasil_analisis.csv', index=False)
+            custom_stopwords = set(STOPWORDS)
+            custom_stopwords.update(['tiktok', 'https', 'com', 'jpg', 'dr', 'id'])
 
-                # WordCloud
-                cleaned_comments = [preprocess_text(c) for c in df[comment_col].astype(str)]
-                all_text = " ".join(cleaned_comments)
+            wc = WordCloud(width=800, height=400, background_color='white',
+                           stopwords=custom_stopwords).generate(all_text)
+            plt.figure(figsize=(10, 5))
+            plt.imshow(wc, interpolation='bilinear')
+            plt.axis('off')
+            plt.tight_layout()
+            plt.savefig('static/wordcloud.png')
+            wordcloud = True
 
-                custom_stopwords = set(STOPWORDS)
-                custom_stopwords.update(['tiktok', 'https', 'com', 'jpg', 'dr', 'id'])
+            # Potong komentar panjang agar tidak satu kolom memanjang
+            df[comment_col] = df[comment_col].astype(str).apply(pecah_komentar_panjang)
 
-                wc = WordCloud(width=800, height=400, background_color='white',
-                               stopwords=custom_stopwords).generate(all_text)
-                plt.figure(figsize=(10, 5))
-                plt.imshow(wc, interpolation='bilinear')
-                plt.axis('off')
-                plt.tight_layout()
-                plt.savefig('static/wordcloud.png')
-                wordcloud = True
+            df.to_csv('uploaded/hasil_analisis.csv', index=False)
+            data = df.rename(columns={comment_col: 'komentar'}).to_dict(orient='records')
 
-                data = df.to_dict(orient='records')
+        elif 'comment' in request.form:
+            komentar_baru = request.form['comment']
+            hasil_text = predict_sentiment(komentar_baru)
 
     return render_template('index.html', hasil_text=hasil_text, data=data, wordcloud=wordcloud)
 
@@ -147,4 +141,3 @@ def download():
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
-
